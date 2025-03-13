@@ -1,0 +1,14 @@
+<mapper namespace="com.suppleit.backend.mapper.MemberSocialMapper">
+
+    <!-- ✅ 소셜 로그인 정보 저장 -->
+    <insert id="insertMemberSocial">
+        INSERT INTO member_social (member_id, social_id, social_type)
+        VALUES (#{memberId}, #{socialId}, #{socialType});
+    </insert>
+
+    <!-- ✅ 소셜 ID로 회원 조회 -->
+    <select id="getMemberSocialBySocialId" resultType="com.suppleit.backend.model.MemberSocial">
+        SELECT * FROM member_social WHERE social_id = #{socialId};
+    </select>
+
+</mapper>
