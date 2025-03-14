@@ -34,6 +34,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-authorization-server' // 필요 시 사용
     // ↓ OAuth2 클라이언트 (소셜 로그인, 외부 OAuth2 리소스 접근)
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'  // 필요 시 사용
+    implementation 'org.springframework.security:spring-security-oauth2-client'
 
     /* ==============================
        Database & ORM

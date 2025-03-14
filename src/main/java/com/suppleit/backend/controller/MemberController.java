@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -66,7 +68,7 @@ public class MemberController {
     // ✅ 비밀번호 찾기 (임시 비밀번호 발급 후 이메일 전송)
     @PostMapping("/find/password")
     public ResponseEntity<String> findPassword(@RequestParam String email) {
-        boolean isVerified = memberService.checkEmailExists(email);
+        boolean isVerified = memberService.checkEmail(email);
         if (isVerified) {
             memberService.generateTempPassword(email);
             return ResponseEntity.ok("임시 비밀번호가 이메일로 발송되었습니다.");
@@ -78,7 +80,7 @@ public class MemberController {
      // 비밀번호 찾기 (임시 비밀번호 발급)
     @PostMapping("/find/password")
     public ResponseEntity<String> findPassword(@RequestParam String email) {
-        boolean isVerified = memberService.checkEmailExists(email);
+        boolean isVerified = memberService.checkEmail(email);
         if (isVerified) {
             String tempPassword = memberService.generateTempPassword(email);
             return ResponseEntity.ok("임시 비밀번호가 발급되었습니다: " + tempPassword);
@@ -87,14 +89,69 @@ public class MemberController {
         }
     }
      */
+    // ✅ 비밀번호 변경
+    @PostMapping("/change-password")
+public ResponseEntity<String> changePassword(@RequestBody Map<String, String> request, HttpServletRequest req) {
+    String token = parseBearerToken(req);
+    if (token == null || jwtTokenProvider.isJwtExpired(token)) {
+        return ResponseEntity.status(401).body("인증이 필요합니다.");
+    }
 
-    // ✅ 회원 탈퇴 (AUTO_INCREMENT 적용)
+    String email = jwtTokenProvider.getEmail(token);
+    String oldPassword = request.get("oldPassword");
+    String newPassword = request.get("newPassword");
+
+    try {
+        boolean isChanged = memberService.changePassword(email, oldPassword, newPassword);
+        if (isChanged) {
+            return ResponseEntity.ok("비밀번호가 변경되었습니다.");
+        }
+    } catch (IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(e.getMessage()); // 예외 메시지를 클라이언트에 반환
+    }
+
+    return ResponseEntity.badRequest().body("비밀번호 변경에 실패하였습니다.");
+}
+
+
+    /* // ✅ 회원 탈퇴 (AUTO_INCREMENT 적용)
     @DeleteMapping("/auth/{memberId}")
     public ResponseEntity<Void> deleteMember(@PathVariable Integer memberId) {  // ✅ String → Integer 변경
         memberService.deleteMember(memberId);
         return ResponseEntity.noContent().build();
-    }
+    } */
+    // ✅ 회원 탈퇴 (로그인한 사용자만 자신의 계정 삭제 가능)
+    @DeleteMapping("/delete")
+    public ResponseEntity<String> deleteMember(HttpServletRequest req) {
+        // 1️⃣ JWT 토큰을 통해 현재 로그인한 사용자의 이메일 가져오기
+        String token = parseBearerToken(req);
+        if (token == null || jwtTokenProvider.isJwtExpired(token)) {
+            return ResponseEntity.status(401).body("인증이 필요합니다.");
+        }
 
+        // 2️⃣ 토큰에서 이메일 추출
+        String email = jwtTokenProvider.getEmail(token);
+
+        // 3️⃣ 회원 탈퇴 수행
+        boolean isDeleted = memberService.deleteMemberByEmail(email);
+
+        if (isDeleted) {
+            return ResponseEntity.ok("회원 탈퇴가 완료되었습니다.");
+        } else {
+            return ResponseEntity.status(400).body("회원 탈퇴에 실패했습니다.");
+        }
+    }
+    // ✅ 로그아웃 (토큰 무효화)
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(HttpServletRequest req) {
+        String token = parseBearerToken(req);
+        if (token == null || jwtTokenProvider.isJwtExpired(token)) {
+            return ResponseEntity.status(401).body("이미 로그아웃되었거나 유효하지 않은 토큰입니다.");
+        }
+        
+        // 클라이언트에서 토큰 삭제하도록 응답
+        return ResponseEntity.ok("로그아웃이 완료되었습니다.");
+    }
     private String parseBearerToken(HttpServletRequest req) {
         String authorization = req.getHeader("Authorization");
         if (authorization != null && authorization.startsWith("Bearer ")) {

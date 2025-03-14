@@ -1,15 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
 <mapper namespace="com.suppleit.backend.mapper.MemberMapper">
 
     <!-- ✅ ResultMap: 컬럼과 객체 필드 매핑 -->
     <resultMap id="memberResultMap" type="com.suppleit.backend.model.Member">
+        <id property="memberId" column="member_id"/> 
         <result property="email" column="email"/>
         <result property="password" column="password"/>
         <result property="nickname" column="nickname"/>
         <result property="gender" column="gender"/>
         <result property="birth" column="birth"/>
-        <result property="memberRole" column="member_role" javaType="com.suppleit.backend.constants.MemberRole"
-            typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="memberRole" column="member_role"/>
     </resultMap>
+
+
 
     <!-- ✅ 회원가입 -->
     <insert id="insertMember" parameterType="com.suppleit.backend.model.Member" useGeneratedKeys="true" keyProperty="memberId">
@@ -19,7 +25,7 @@
 
     <!-- ✅ 이메일로 회원 조회 -->
     <select id="getMemberByEmail" resultMap="memberResultMap">
-        SELECT email, password, nickname, gender, birth, member_role
+        SELECT member_id, email, password, nickname, gender, birth, member_role
         FROM Member
         WHERE email = #{email};
     </select>
@@ -34,8 +40,8 @@
         SELECT COUNT(*) FROM Member WHERE nickname = #{nickname};
     </select>
 
-    <!-- ✅ 회원 삭제 -->
-    <delete id="deleteMember">
+    <!-- ✅ 회원 삭제 (이메일 기반) -->
+    <delete id="deleteMemberByEmail">
         DELETE FROM Member WHERE email = #{email};
     </delete>
 

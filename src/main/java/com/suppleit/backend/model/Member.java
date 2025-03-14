@@ -26,12 +26,7 @@ public class Member {
     }
 
     // ✅ ENUM → String 변환 메서드 추가 (memberRole이 null이면 기본값 "USER" 설정)
-    public String getMemberRoleString() {
-        return memberRole != null ? memberRole.getRole() : "USER"; // 기본값 설정
-    }
-
-    // ✅ ENUM Setter 추가 (MyBatis에서 문자열을 ENUM으로 변환할 때 필요)
     public void setMemberRole(String role) {
-        this.memberRole = (role != null) ? MemberRole.from(role) : MemberRole.USER;
+        this.memberRole = MemberRole.fromString(role);  // ✅ NULL 값도 변환 가능하도록 보장
     }
 }

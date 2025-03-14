@@ -24,7 +24,7 @@ public class MemberService {
     // ✅ 회원가입 (MyBatis 적용)
     public void insertMember(MemberDto memberDto) {
         // ✅ 이메일 중복 검사
-        if (checkEmailExists(memberDto.getEmail())) {
+        if (checkEmail(memberDto.getEmail())) {
             throw new IllegalArgumentException("이미 등록된 이메일입니다.");
         }
 
@@ -48,32 +48,68 @@ public class MemberService {
     
     // ✅ 이메일 중복 검사
     public boolean checkEmail(String email) {
-        return memberMapper.checkEmail(email);
+        return memberMapper.checkEmail(email) > 0; // ✅ 숫자를 boolean 값으로 변환
     }
 
     // ✅ 닉네임 중복 검사
     public boolean checkNickname(String nickname) {
-        return memberMapper.checkNickname(nickname);
+        return memberMapper.checkNickname(nickname) > 0;
     }
 
     // ✅ 이메일로 회원 조회
     public MemberDto getMemberByEmail(String email) {
         Member member = memberMapper.getMemberByEmail(email);
+        System.out.println("DB에서 가져온 memberRole: " + (member != null ? member.getMemberRole() : "NULL")); // ✅ 로그 추가
         return (member != null) ? MemberDto.fromEntity(member) : null;
-    }    
-
-    // ✅ 이메일 존재 여부 확인
-    public boolean checkEmailExists(String email) {
-        return memberMapper.checkEmail(email);
     }
 
-    // ✅ 회원 삭제 (memberId 기반으로 삭제)
+    // ✅ 비밀번호 변경
+    public boolean changePassword(String email, String oldPassword, String newPassword) {
+        // 1️⃣ 이메일로 회원 조회
+        Member member = memberMapper.getMemberByEmail(email);
+    
+        if (member == null) {
+            throw new IllegalArgumentException("해당 이메일로 가입된 사용자가 없습니다.");
+        }
+    
+        // 2️⃣ 기존 비밀번호가 일치하는지 확인
+        if (!passwordEncoder.matches(oldPassword, member.getPassword())) {
+            throw new IllegalArgumentException("기존 비밀번호가 일치하지 않습니다.");
+        }
+    
+        // 3️⃣ 기존 비밀번호와 새로운 비밀번호가 같은지 확인
+        if (passwordEncoder.matches(newPassword, member.getPassword())) {
+            throw new IllegalArgumentException("새로운 비밀번호는 기존 비밀번호와 다르게 설정해야 합니다.");
+        }
+    
+        // 4️⃣ 새 비밀번호 암호화 후 저장
+        String encodedNewPassword = passwordEncoder.encode(newPassword);
+        memberMapper.updatePassword(email, encodedNewPassword);
+        
+        return true; // 비밀번호 변경 성공
+    }
+
+    /* // ✅ 회원 삭제 (memberId 기반으로 삭제)
     public void deleteMember(Integer memberId) {
         if (memberMapper.getMemberById(memberId) == null) {  // ✅ memberId 기반 조회
             throw new IllegalArgumentException("존재하지 않는 회원입니다.");
         }
         memberMapper.deleteMember(memberId);
+    } */
+
+    // ✅ 회원 탈퇴 (로그인한 사용자만 자신의 계정 삭제 가능) 
+    public boolean deleteMemberByEmail(String email) {
+        Member member = memberMapper.getMemberByEmail(email);
+        
+        if (member == null) {
+            return false; // 해당 이메일로 가입된 사용자가 없음
+        }
+    
+        // 회원 정보 삭제
+        memberMapper.deleteMemberByEmail(email);
+        return true;
     }
+    
 
     // ✅ 임시 비밀번호 발급
     public String generateTempPassword(String email) {
