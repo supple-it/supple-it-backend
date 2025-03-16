@@ -41,4 +41,11 @@ naver:
 
 flask:
   api:
-    url: http://localhost:5000/recommend?keyword= # Flask 서버의 URL
+    url: http://localhost:5000 # Flask 서버의 URL
+    
+
+logging:
+  level:
+    com:
+      suppleit:
+        backend: DEBUG

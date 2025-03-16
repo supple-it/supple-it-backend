@@ -1,34 +1,34 @@
 package com.suppleit.backend.service;
 
-import lombok.RequiredArgsConstructor;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.suppleit.backend.dto.NaverSearchResponse;
-import com.suppleit.backend.dto.ProductResponse;
 import com.suppleit.backend.dto.RecommendationResponse;
 
-import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
+import jakarta.annotation.PreDestroy;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RecommendationService {
 
   private final RestTemplate restTemplate;
+  private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
   @Value("${flask.api.url}")
   private String flaskUrl;
-
-  @Value("${naver.api.url}")
-  private String naverApiUrl;
 
   @Value("${naver.api.client-id}")
   private String clientId;
@@ -44,52 +44,30 @@ public class RecommendationService {
   }
 
   public List<String> getRecommendations(String keyword) {
-    URI uri = UriComponentsBuilder.fromHttpUrl(flaskUrl)
+    log.info("Fetching recommendations for keyword: {}", keyword);
+    // Flask 서버의 recommend 엔드포인트로 요청
+    URI uri = UriComponentsBuilder.fromHttpUrl(flaskUrl + "/recommend")
         .queryParam("keyword", keyword)
         .build()
         .toUri();
     try {
+      log.debug("Calling Flask API with URI: {}", uri);
       ResponseEntity<RecommendationResponse> response = restTemplate.getForEntity(uri, RecommendationResponse.class);
       if (response.getBody() != null && response.getBody().getRecommendations() != null) {
+        log.info("Received recommendations: {}", response.getBody().getRecommendations());
         return response.getBody().getRecommendations();
       } else {
+        log.warn("No recommendations found for keyword: {}", keyword);
         return new ArrayList<>();
       }
     } catch (Exception e) {
-      // 예외 처리 로직 추가 (로깅 등)
+      log.error("Error fetching recommendations from Flask API: {}", e.getMessage());
       return new ArrayList<>();
     }
   }
 
-  public List<ProductResponse> searchNaver(List<String> productNames) {
-    return productNames.stream()
-        .flatMap(product -> searchNaverSingleProduct(product).stream())
-        .collect(Collectors.toList());
-  }
-
-  private List<ProductResponse> searchNaverSingleProduct(String product) {
-    List<ProductResponse> results = new ArrayList<>();
-    URI uri = UriComponentsBuilder.fromHttpUrl(naverApiUrl)
-        .queryParam("query", URLEncoder.encode(product, StandardCharsets.UTF_8))
-        .build()
-        .toUri();
-    try {
-      HttpEntity<String> entity = new HttpEntity<>(createHeaders());
-      ResponseEntity<NaverSearchResponse> response = restTemplate.exchange(uri, HttpMethod.GET, entity,
-          NaverSearchResponse.class);
-      if (response.getBody() != null && response.getBody().getItems() != null) {
-        List<ProductResponse> productResponses = (List<ProductResponse>) response.getBody().getItems().stream()
-            .map(item -> new ProductResponse(
-                item.getTitle(),
-                item.getLink(),
-                item.getImage(),
-                item.getLprice()))
-            .collect(Collectors.toList());
-        results.addAll(productResponses);
-      }
-    } catch (Exception e) {
-      // 예외 처리 로직 추가 (로깅 등)
-    }
-    return results;
+  @PreDestroy
+  public void shutdown() {
+    executorService.shutdown();
   }
 }

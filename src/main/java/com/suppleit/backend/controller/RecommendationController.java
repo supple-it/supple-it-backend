@@ -1,33 +1,39 @@
 package com.suppleit.backend.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.suppleit.backend.dto.ProductResponse;
+import com.suppleit.backend.dto.SearchRequest;
+import com.suppleit.backend.service.RecommendationService;
+
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
+@Slf4j
 public class RecommendationController {
 
-  private final RestTemplate restTemplate;
-  private final ObjectMapper objectMapper;
+  private final RecommendationService recommendationService;
   private final ExecutorService executorService;
-
-  @Value("${flask.api.url}")
-  private String flaskServerUrl;
 
   @Value("${naver.api.client-id}")
   private String clientId;
@@ -35,112 +41,117 @@ public class RecommendationController {
   @Value("${naver.api.client-secret}")
   private String clientSecret;
 
-  public RecommendationController(RestTemplate restTemplate, ObjectMapper objectMapper) {
-    this.restTemplate = restTemplate;
-    this.objectMapper = objectMapper;
+  @Value("${naver.api.url}")
+  private String naverApiUrl;
+
+  @Value("${flask.api.url}")
+  private String flaskUrl;
+
+  public RecommendationController(RecommendationService recommendationService) {
+    this.recommendationService = recommendationService;
     this.executorService = Executors.newFixedThreadPool(10);
   }
 
   @GetMapping("/api/recommend")
   public List<ProductResponse> getRecommendations(@RequestParam("keyword") String keyword) {
-    // Step 1: Flask 서버에서 추천 목록 받기
-    URI flaskUri = UriComponentsBuilder.fromHttpUrl(flaskServerUrl + "/recommend")
-        .queryParam("keyword", keyword)
-        .build().encode().toUri(); // URL 인코딩 적용
+    log.info("Request received to get recommendations for keyword: {}", keyword);
 
-    ApiResponse apiResponse = restTemplate.getForObject(flaskUri, ApiResponse.class);
-    if (apiResponse == null || apiResponse.getRecommendations() == null) {
-      return new ArrayList<>(); // Flask 응답이 없거나 추천 목록이 null인 경우 빈 목록 반환
+    // Flask 서버에서 추천 목록 요청
+    List<String> recommendations = recommendationService.getRecommendations(keyword);
+    if (recommendations.isEmpty()) {
+      log.warn("No recommendations found for keyword: {}", keyword);
+      return new ArrayList<>();
     }
 
-    List<String> recommendations = apiResponse.getRecommendations();
-
-    // Step 2: Naver API로 추천된 제품들을 비동기적으로 요청
+    // 네이버 API에서 추천 상품 검색
     List<CompletableFuture<ProductResponse>> futures = new ArrayList<>();
     for (String recommendation : recommendations) {
-      CompletableFuture<ProductResponse> future = CompletableFuture
-          .supplyAsync(() -> getNaverProductResponse(recommendation), executorService);
-      futures.add(future);
+      futures.add(CompletableFuture.supplyAsync(() -> getNaverProductResponse(recommendation), executorService)
+          .exceptionally(ex -> {
+            log.error("Error occurred for query: {}, Exception: {}", recommendation, ex.getMessage());
+            return null;
+          }));
     }
 
-    return futures.stream()
+    List<ProductResponse> products = futures.stream()
         .map(CompletableFuture::join)
         .filter(response -> response != null)
         .toList();
+
+    log.info("Fetched {} products from Naver API", products.size());
+
+    return products;
+  }
+
+  // Flask 서버로부터 POST 요청 처리를 위한 추가 메서드
+  @PostMapping("/api/recommend")
+  public List<ProductResponse> receiveRecommendations(@RequestBody SearchRequest request) {
+    log.info("Received POST request with {} recommendations", request.getProducts().size());
+
+    List<String> recommendations = request.getProducts();
+    if (recommendations.isEmpty()) {
+      log.warn("No recommendations received in POST request");
+      return new ArrayList<>();
+    }
+
+    // 네이버 API에서 추천 상품 검색
+    List<CompletableFuture<ProductResponse>> futures = new ArrayList<>();
+    for (String recommendation : recommendations) {
+      futures.add(CompletableFuture.supplyAsync(() -> getNaverProductResponse(recommendation), executorService)
+          .exceptionally(ex -> {
+            log.error("Error occurred for query: {}, Exception: {}", recommendation, ex.getMessage());
+            return null;
+          }));
+    }
+
+    List<ProductResponse> products = futures.stream()
+        .map(CompletableFuture::join)
+        .filter(response -> response != null)
+        .toList();
+
+    log.info("Fetched {} products from Naver API", products.size());
+
+    return products;
   }
 
   private ProductResponse getNaverProductResponse(String query) {
+    log.debug("Searching for product on Naver with query: {}", query);
+
     try {
-      URI naverUri = UriComponentsBuilder.fromHttpUrl("https://openapi.naver.com/v1/search/shop.json")
-          .queryParam("query", URLEncoder.encode(query, StandardCharsets.UTF_8))
-          .build().encode().toUri(); // URL 인코딩 적용
+      URI naverUri = UriComponentsBuilder.fromUriString(naverApiUrl)
+          .queryParam("query", query)
+          .build().encode().toUri();
 
       HttpHeaders headers = new HttpHeaders();
-      headers.add("X-Naver-Client-Id", clientId);
-      headers.add("X-Naver-Client-Secret", clientSecret);
+      headers.set("X-Naver-Client-Id", clientId);
+      headers.set("X-Naver-Client-Secret", clientSecret);
 
       HttpEntity<String> entity = new HttpEntity<>(headers);
-      ResponseEntity<String> response = restTemplate.exchange(naverUri, HttpMethod.GET, entity, String.class);
+      ResponseEntity<String> response = new RestTemplate().exchange(naverUri, HttpMethod.GET, entity, String.class);
 
-      JsonNode root = objectMapper.readTree(response.getBody());
-      if (root.has("items") && root.get("items").isArray() && root.get("items").size() > 0) {
-        JsonNode item = root.get("items").get(0);
+      if (response.getBody() == null) {
+        log.warn("No response body received for query: {}", query);
+        return null;
+      }
+
+      JsonNode root = new ObjectMapper().readTree(response.getBody());
+      JsonNode items = root.path("items");
+
+      if (items.isArray() && items.size() > 0) {
+        JsonNode item = items.get(0);
+        log.info("Found product: {} with price: {}", item.path("title").asText(), item.path("lprice").asInt(0));
+
         return new ProductResponse(
-            item.get("title").asText(),
-            item.get("link").asText(),
-            item.get("image").asText(),
-            item.get("lprice").asInt());
+            item.path("title").asText(),
+            item.path("link").asText(),
+            item.path("image").asText(),
+            item.path("lprice").asInt(0));
+      } else {
+        log.warn("No items found for query: {}", query);
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("Error occurred while processing query: {}, Exception: {}", query, e.getMessage());
     }
     return null;
-  }
-
-  // Flask 응답을 받을 DTO
-  public static class ApiResponse {
-    private String keyword;
-    private int count;
-    private List<String> recommendations;
-
-    // Getters and setters
-    public List<String> getRecommendations() {
-      return recommendations;
-    }
-
-    public void setRecommendations(List<String> recommendations) {
-      this.recommendations = recommendations;
-    }
-  }
-
-  public static class ProductResponse {
-    private String title;
-    private String link;
-    private String image;
-    private int price;
-
-    public ProductResponse(String title, String link, String image, int price) {
-      this.title = title;
-      this.link = link;
-      this.image = image;
-      this.price = price;
-    }
-
-    // getters and setters
-    public String getTitle() {
-      return title;
-    }
-
-    public String getLink() {
-      return link;
-    }
-
-    public String getImage() {
-      return image;
-    }
-
-    public int getPrice() {
-      return price;
-    }
   }
 }
