@@ -2,9 +2,10 @@ package com.suppleit.backend.model;
 
 import com.suppleit.backend.constants.Gender;
 import com.suppleit.backend.constants.MemberRole;
+import com.suppleit.backend.constants.SocialType;
 import lombok.*;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -12,21 +13,46 @@ import java.util.Date;
 @AllArgsConstructor
 @Builder
 public class Member {
-    private String memberId;  // Auto_Increment
+    private Long memberId;
     private String email;
-    private String password;  // 비밀번호는 반드시 암호화된 값으로 저장
+    private String password;
     private String nickname;
     private Gender gender;
-    private Date birth;
-    private MemberRole memberRole; 
+    private LocalDate birth;
 
-    // ✅ ENUM → String 변환 메서드 (MyBatis에서 ENUM을 올바르게 처리하도록 설정)
-    public String getGenderString() {
-        return gender != null ? gender.name() : null;
+    private MemberRole memberRole;
+    private SocialType socialType;
+
+    // ✅ MyBatis가 Enum 값을 올바르게 매핑하도록 변환 메서드 추가
+    public String getMemberRoleString() {
+        return memberRole != null ? memberRole.name() : "USER"; // 기본값 설정
     }
 
-    // ✅ ENUM → String 변환 메서드 추가 (memberRole이 null이면 기본값 "USER" 설정)
     public void setMemberRole(String role) {
-        this.memberRole = MemberRole.fromString(role);  // ✅ NULL 값도 변환 가능하도록 보장
+        if (role != null) {
+            try {
+                this.memberRole = MemberRole.valueOf(role);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid role: " + role + ". Allowed values: USER, ADMIN");
+            }
+        } else {
+            this.memberRole = MemberRole.USER;
+        }
+    }
+
+    public String getSocialTypeString() {
+        return socialType != null ? socialType.name() : "NONE"; // 기본값 설정
+    }
+
+    public void setSocialType(String socialType) {
+        if (socialType != null) {
+            try {
+                this.socialType = SocialType.valueOf(socialType);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid social type: " + socialType + ". Allowed values: NONE, KAKAO, NAVER, GOOGLE");
+            }
+        } else {
+            this.socialType = SocialType.NONE;
+        }
     }
 }

@@ -1,13 +1,14 @@
 package com.suppleit.backend.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.suppleit.backend.security.MemberDetailsService;
 import com.suppleit.backend.security.jwt.JwtFilter;
 import com.suppleit.backend.security.jwt.JwtTokenProvider;
+import com.suppleit.backend.service.MemberDetailsService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
@@ -30,12 +31,6 @@ public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final MemberDetailsService memberDetailsService;
-
-    // ✅ JSON 직렬화를 위한 ObjectMapper
-    @Bean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
-    }
 
     // ✅ 비밀번호 암호화 (BCrypt)
     @Bean
@@ -65,13 +60,27 @@ public class SecurityConfig {
         return new JwtFilter(jwtTokenProvider, memberDetailsService);
     }
 
-    // ✅ 요청별 권한 설정 (ENUM 활용)
+    // ✅ 요청별 권한 설정
     private void configureAuthorization(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
         auth
-            .requestMatchers("/admin/**").hasRole("ADMIN")  // 기존: hasRole("ROLE_ADMIN")
-            .requestMatchers("/api/member/auth/**").hasAnyRole("ADMIN", "USER")  // 기존: hasAnyRole("ROLE_ADMIN", "ROLE_USER")
-            .anyRequest().permitAll();
-        
+            .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")  // ✅ 관리자 권한 필요
+            .requestMatchers("/api/member/auth/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_USER")  // ✅ 관리자 & 사용자 권한 필요
+            .requestMatchers("/api/logout").authenticated() // ✅ 로그인한 사용자만 로그아웃 가능
+
+            // 소셜 로그인 API는 인증 없이 접근 가능
+            .requestMatchers("/api/social/login/**").permitAll()
+
+            // 추가: 이메일 인증과 토큰 갱신은 인증 없이 접근 가능
+            .requestMatchers("/api/member/verify-email").permitAll()
+            .requestMatchers("/api/auth/refresh").permitAll()
+            .requestMatchers("/api/auth/login").permitAll()
+
+            // ✅ 🔹 공지사항 관련 권한 추가 (관리자만 가능)
+            .requestMatchers(HttpMethod.POST, "/api/notice").hasAuthority("ROLE_ADMIN")  
+            .requestMatchers(HttpMethod.PUT, "/api/notice/**").hasAuthority("ROLE_ADMIN")  
+            .requestMatchers(HttpMethod.DELETE, "/api/notice/**").hasAuthority("ROLE_ADMIN")  
+
+            .anyRequest().permitAll();  // ✅ 그 외 요청은 누구나 가능
     }
 
     // ✅ 로그아웃 설정 추가

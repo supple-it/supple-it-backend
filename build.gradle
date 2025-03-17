@@ -35,6 +35,7 @@ dependencies {
     // ↓ OAuth2 클라이언트 (소셜 로그인, 외부 OAuth2 리소스 접근)
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'  // 필요 시 사용
     implementation 'org.springframework.security:spring-security-oauth2-client'
+    implementation 'org.springframework.security:spring-security-oauth2-jose'
 
     /* ==============================
        Database & ORM
@@ -43,7 +44,7 @@ dependencies {
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.4'
 
     // ↓ JPA(Hibernate) 사용 - MyBatis와 함께 쓰는 것은 가능하지만, 보통은 둘 중 하나만 사용
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    //implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
     // MySQL 연결 라이브러리
     runtimeOnly 'com.mysql:mysql-connector-j'
@@ -56,17 +57,29 @@ dependencies {
 
     
     //방법2) 세분화된 의존성 (권장):
-         implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-         runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
-         runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
     //단, 하나만 택해서 써야 합니다. (둘 다 동시에 쓰면 중복)
     
+    // 이메일
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    /* ==============================
+       Redis (캐시, 세션 저장소 등)
+       ============================== */    
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // LocalDate 직렬화를 위한 Jackson 모듈 추가
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     /* ==============================
        Lombok (코드 간소화)
        ============================== */
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+    // LocaDateTime, LocalDate 등을 사용하기 위한 Jackson 모듈
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     /* ==============================
        개발 편의성 도구
@@ -82,6 +95,11 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'       // Spring Security 테스트
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'                 // JUnit 실행기
 }
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs << "-parameters"
+}
+
 
 tasks.named('test') {
     useJUnitPlatform()

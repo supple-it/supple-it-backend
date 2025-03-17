@@ -1,12 +1,18 @@
 package com.suppleit.backend.dto;
 
-import com.suppleit.backend.model.Member;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.suppleit.backend.constants.Gender;
 import com.suppleit.backend.constants.MemberRole;
+import com.suppleit.backend.constants.SocialType;
+import com.suppleit.backend.model.Member;
 import lombok.*;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -14,35 +20,49 @@ import java.util.Date;
 @AllArgsConstructor
 @Builder
 public class MemberDto {
+    @NotBlank(message = "이메일을 입력해주세요.")
+    @Email(message = "올바른 이메일 형식이 아닙니다.")
     private String email;
+    
     private String password;
+    
+    @Size(min = 3, max = 20, message = "닉네임은 3~20자 사이여야 합니다.")
     private String nickname;
+    
     private Gender gender;
-    private Date birth;
-    @JsonProperty("memberRole")  // ✅ JSON 필드명을 명확하게 지정
+    
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate birth;
+    
+    @JsonProperty("memberRole")
     private MemberRole memberRole;
+    
+    @JsonProperty("socialType")
+    private SocialType socialType;
 
-    // ✅ Member → MemberDto 변환 메서드 (비밀번호 제외)
+    // Member → MemberDto 변환
     public static MemberDto fromEntity(Member member) {
         return MemberDto.builder()
                 .email(member.getEmail())
-                .password(member.getPassword())
+                .password(null)  // 보안상 비밀번호는 반환하지 않음
                 .nickname(member.getNickname())
                 .gender(member.getGender())
                 .birth(member.getBirth())
                 .memberRole(member.getMemberRole())
+                .socialType(member.getSocialType())
                 .build();
     }
 
-    // ✅ MemberDto → Member 변환 메서드 (회원가입용)
+    // MemberDto → Member 변환
     public Member toEntity(String encodedPassword) {
         return Member.builder()
-                .email(this.email)
-                .password(encodedPassword)  // 비밀번호는 외부에서 암호화 후 전달해야 함
-                .nickname(this.nickname)
-                .gender(this.gender)
-                .birth(this.birth)
-                .memberRole(this.memberRole)
-                .build();
+            .email(this.email)
+            .password(encodedPassword)
+            .nickname(this.nickname)
+            .gender(this.gender)
+            .birth(this.birth)
+            .memberRole(this.memberRole != null ? this.memberRole : MemberRole.USER)
+            .socialType(this.socialType != null ? this.socialType : SocialType.NONE)
+            .build();
     }
 }
