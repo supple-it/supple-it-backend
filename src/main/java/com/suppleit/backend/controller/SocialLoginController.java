@@ -18,6 +18,7 @@ public class SocialLoginController {
 
     private final SocialLoginService socialLoginService;
 
+<<<<<<< HEAD
     /**
      * 카카오 로그인 API
      * 클라이언트에서 받은 카카오 액세스 토큰을 이용해 사용자 정보를 조회하고
@@ -68,6 +69,4 @@ public class SocialLoginController {
                 .body(ApiResponse.error("네이버 로그인 실패: " + e.getMessage()));
         }
     }
-
-    
 }

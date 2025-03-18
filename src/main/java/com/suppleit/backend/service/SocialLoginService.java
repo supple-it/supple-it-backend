@@ -24,6 +24,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class SocialLoginService {
 
+<<<<<<< HEAD
     private final MemberMapper memberMapper;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;

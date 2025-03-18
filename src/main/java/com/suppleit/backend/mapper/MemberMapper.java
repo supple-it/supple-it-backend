@@ -28,6 +28,7 @@ public interface MemberMapper {
     void deleteMemberByEmail(@Param("email") String email);
 
     // ✅ 회원 삭제 (ID 기반)
+
     void deleteMemberById(@Param("memberId") Long memberId);
 
     // 회원 정보 수정

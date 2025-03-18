@@ -1,0 +1,30 @@
+package com.suppleit.backend.constants;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
+public enum MemberRole {
+    USER("USER"),
+    ADMIN("ADMIN");
+
+    private final String role;
+
+    MemberRole(String role) {
+        this.role = role;
+    }
+
+    @JsonValue  // ✅ JSON으로 변환될 때 role 값을 사용
+    public String getRole() {
+        return role;
+    }
+
+    @JsonCreator  // ✅ JSON에서 역직렬화 시 자동으로 매핑
+    public static MemberRole from(String role) {
+        for (MemberRole memberRole : MemberRole.values()) {
+            if (memberRole.role.equalsIgnoreCase(role)) {
+                return memberRole;
+            }
+        }
+        throw new IllegalArgumentException("Unknown role: " + role);
+    }
+}

@@ -1,5 +1,6 @@
 package com.suppleit.backend.dto;
 
+<<<<<<< HEAD
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -28,6 +29,7 @@ public class MemberDto {
     
     @Size(min = 3, max = 20, message = "닉네임은 3~20자 사이여야 합니다.")
     private String nickname;
+
     
     private Gender gender;
     
@@ -45,11 +47,13 @@ public class MemberDto {
         return MemberDto.builder()
                 .email(member.getEmail())
                 .password(null)  // 보안상 비밀번호는 반환하지 않음
+
                 .nickname(member.getNickname())
                 .gender(member.getGender())
                 .birth(member.getBirth())
                 .memberRole(member.getMemberRole())
                 .socialType(member.getSocialType())
+
                 .build();
     }
 
