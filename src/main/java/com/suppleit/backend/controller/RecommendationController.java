@@ -52,71 +52,87 @@ public class RecommendationController {
     this.executorService = Executors.newFixedThreadPool(10);
   }
 
-  @GetMapping("/api/recommend")
+  @GetMapping("api/recommend")
   public List<ProductResponse> getRecommendations(@RequestParam("keyword") String keyword) {
     log.info("Request received to get recommendations for keyword: {}", keyword);
 
-    // Flask 서버에서 추천 목록 요청
-    List<String> recommendations = recommendationService.getRecommendations(keyword);
-    if (recommendations.isEmpty()) {
-      log.warn("No recommendations found for keyword: {}", keyword);
-      return new ArrayList<>();
+    // 1. 원본 키워드로 직접 네이버 API 검색
+    ProductResponse directResult = getNaverProductResponseWithFallback(keyword);
+    List<ProductResponse> results = new ArrayList<>();
+    if (directResult != null) {
+      results.add(directResult);
     }
 
-    // 네이버 API에서 추천 상품 검색
+    // 2. Flask 서버에서 추천 키워드 받기
+    List<String> recommendations = recommendationService.getRecommendations(keyword);
+
+    if (recommendations.isEmpty()) {
+      log.warn("No recommendations found for keyword: {}", keyword);
+      return fillWithDummies(results, 9);
+    }
+
+    // 3. 추천 키워드로 검색하되 직접 네이버 검색 API 사용
     List<CompletableFuture<ProductResponse>> futures = new ArrayList<>();
+
+    // 각 추천 키워드에 원본 키워드를 결합하여 검색 관련성 높이기
     for (String recommendation : recommendations) {
-      futures.add(CompletableFuture.supplyAsync(() -> getNaverProductResponse(recommendation), executorService)
-          .exceptionally(ex -> {
-            log.error("Error occurred for query: {}, Exception: {}", recommendation, ex.getMessage());
+      String combinedQuery = recommendation + " " + keyword;
+      futures.add(CompletableFuture.supplyAsync(
+          () -> getNaverProductResponseWithFallback(combinedQuery),
+          executorService).exceptionally(ex -> {
+            log.error("Error occurred for query: {}, Exception: {}", combinedQuery, ex.getMessage());
             return null;
           }));
     }
 
-    List<ProductResponse> products = futures.stream()
+    // 결과 수집
+    List<ProductResponse> validProducts = futures.stream()
         .map(CompletableFuture::join)
         .filter(response -> response != null)
         .toList();
 
-    log.info("Fetched {} products from Naver API", products.size());
+    log.info("Fetched {} valid products from Naver API", validProducts.size());
+    results.addAll(validProducts);
 
-    return products;
+    // 정확히 9개를 반환하기 위해 더미 데이터로 채우기
+    return fillWithDummies(results, 9);
   }
 
   // Flask 서버로부터 POST 요청 처리를 위한 추가 메서드
-  @PostMapping("/api/recommend")
+  @PostMapping("/recommend")
   public List<ProductResponse> receiveRecommendations(@RequestBody SearchRequest request) {
     log.info("Received POST request with {} recommendations", request.getProducts().size());
 
     List<String> recommendations = request.getProducts();
     if (recommendations.isEmpty()) {
       log.warn("No recommendations received in POST request");
-      return new ArrayList<>();
+      return fillWithDummies(new ArrayList<>(), 9);
     }
 
     // 네이버 API에서 추천 상품 검색
     List<CompletableFuture<ProductResponse>> futures = new ArrayList<>();
     for (String recommendation : recommendations) {
-      futures.add(CompletableFuture.supplyAsync(() -> getNaverProductResponse(recommendation), executorService)
-          .exceptionally(ex -> {
+      futures.add(CompletableFuture.supplyAsync(
+          () -> getNaverProductResponseWithFallback(recommendation),
+          executorService).exceptionally(ex -> {
             log.error("Error occurred for query: {}, Exception: {}", recommendation, ex.getMessage());
             return null;
           }));
     }
 
-    List<ProductResponse> products = futures.stream()
+    List<ProductResponse> validProducts = futures.stream()
         .map(CompletableFuture::join)
         .filter(response -> response != null)
         .toList();
 
-    log.info("Fetched {} products from Naver API", products.size());
+    log.info("Fetched {} valid products from Naver API", validProducts.size());
 
-    return products;
+    // 정확히 9개를 반환하기 위해 더미 데이터로 채우기
+    return fillWithDummies(validProducts, 9);
   }
 
   private ProductResponse getNaverProductResponse(String query) {
     log.debug("Searching for product on Naver with query: {}", query);
-
     try {
       URI naverUri = UriComponentsBuilder.fromUriString(naverApiUrl)
           .queryParam("query", query)
@@ -145,13 +161,145 @@ public class RecommendationController {
             item.path("title").asText(),
             item.path("link").asText(),
             item.path("image").asText(),
-            item.path("lprice").asInt(0));
+            item.path("lprice").asInt(0),
+            false);
       } else {
         log.warn("No items found for query: {}", query);
       }
     } catch (Exception e) {
       log.error("Error occurred while processing query: {}, Exception: {}", query, e.getMessage());
     }
+
     return null;
+  }
+
+  private ProductResponse getNaverProductResponseWithFallback(String query) {
+    // 기존 getNaverProductResponse를 최적화한 버전
+    log.debug("Searching for product on Naver with query: {}", query);
+    try {
+      // 네이버 API 호출 전 짧은 지연 추가 (속도 제한 방지)
+      Thread.sleep(300); // 300ms 지연
+      // 쿼리 최적화 (특수문자 제거, 키워드 정리 등)
+      String optimizedQuery = optimizeSearchQuery(query);
+
+      URI naverUri = UriComponentsBuilder.fromUriString(naverApiUrl)
+          .queryParam("query", optimizedQuery)
+          .queryParam("display", 5) // 여러 결과를 가져와서 최적의 결과 선택
+          .build().encode().toUri();
+
+      HttpHeaders headers = new HttpHeaders();
+      headers.set("X-Naver-Client-Id", clientId);
+      headers.set("X-Naver-Client-Secret", clientSecret);
+
+      HttpEntity<String> entity = new HttpEntity<>(headers);
+      ResponseEntity<String> response = new RestTemplate().exchange(naverUri, HttpMethod.GET, entity, String.class);
+
+      if (response.getBody() == null) {
+        log.warn("No response body received for query: {}", optimizedQuery);
+        return null;
+      }
+
+      JsonNode root = new ObjectMapper().readTree(response.getBody());
+      JsonNode items = root.path("items");
+
+      if (items.isArray() && items.size() > 0) {
+        // 최적의 결과 선택
+        JsonNode bestItem = findBestMatch(items, query);
+
+        if (bestItem != null) {
+          log.info("Found product: {} with price: {}", bestItem.path("title").asText(),
+              bestItem.path("lprice").asInt(0));
+
+          return new ProductResponse(
+              bestItem.path("title").asText(),
+              bestItem.path("link").asText(),
+              bestItem.path("image").asText(),
+              bestItem.path("lprice").asInt(0),
+              false); // 실제 상품이므로 isDummy = false
+        }
+      } else {
+        log.warn("No items found for query: {}", optimizedQuery);
+
+        // 대체 쿼리 시도 (키워드 단순화)
+        if (optimizedQuery.contains(" ")) {
+          String simplifiedQuery = optimizedQuery.split(" ")[0]; // 첫 단어만 사용
+          log.info("Trying simplified query: {}", simplifiedQuery);
+          return getNaverProductResponse(simplifiedQuery);
+        }
+      }
+    } catch (Exception e) {
+      log.error("Error occurred while processing query: {}, Exception: {}", query, e.getMessage());
+    }
+
+    return null;
+  }
+
+  // 더미 상품으로 채우는 헬퍼 메소드
+  private List<ProductResponse> fillWithDummies(List<ProductResponse> products, int targetSize) {
+    List<ProductResponse> result = new ArrayList<>(products);
+    for (int i = products.size(); i < targetSize; i++) {
+      result.add(createDummyProduct(i));
+    }
+    return result;
+  }
+
+  // 더미 상품 생성 메서드
+  private ProductResponse createDummyProduct(int index) {
+    return new ProductResponse(
+        "추천 준비 중", // 제목
+        "#", // 링크
+        "#", // 더미 이미지 경로
+        0, // 가격
+        true // 더미 표시 플래그
+    );
+  }
+
+  // 쿼리 최적화 메소드
+  private String optimizeSearchQuery(String query) {
+    // 괄호와 특수문자 제거
+    return query.replaceAll("[\\(\\)\\[\\]\\{\\}]", "").trim();
+  }
+
+  // 가장 적합한 결과 찾기
+  private JsonNode findBestMatch(JsonNode items, String originalQuery) {
+    JsonNode bestItem = null;
+    int highestScore = -1;
+
+    for (JsonNode item : items) {
+      String title = item.path("title").asText();
+      // HTML 태그 제거
+      String cleanTitle = title.replaceAll("<[^>]*>", "");
+      // 간단한 관련성 점수 계산
+      int score = calculateRelevanceScore(originalQuery, cleanTitle);
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestItem = item;
+      }
+    }
+
+    return bestItem;
+  }
+
+  // 관련성 점수 계산
+  private int calculateRelevanceScore(String query, String title) {
+    int score = 0;
+    String lowerQuery = query.toLowerCase();
+    String lowerTitle = title.toLowerCase();
+
+    // 전체 쿼리가 제목에 포함되면 높은 점수
+    if (lowerTitle.contains(lowerQuery)) {
+      score += 100;
+    }
+
+    // 개별 단어 일치 점수
+    String[] queryWords = lowerQuery.split("\\s+");
+    for (String word : queryWords) {
+      if (word.length() > 1 && lowerTitle.contains(word)) {
+        score += 10;
+      }
+    }
+
+    return score;
   }
 }

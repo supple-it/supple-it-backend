@@ -45,10 +45,14 @@ public class RecommendationService {
 
   public List<String> getRecommendations(String keyword) {
     log.info("Fetching recommendations for keyword: {}", keyword);
+    // 캐시 버스팅을 위한 타임스탬프 추가
+    String timestamp = String.valueOf(System.currentTimeMillis());
     // Flask 서버의 recommend 엔드포인트로 요청
-    URI uri = UriComponentsBuilder.fromHttpUrl(flaskUrl + "/recommend")
+    URI uri = UriComponentsBuilder.fromUriString(flaskUrl + "/recommend")
         .queryParam("keyword", keyword)
+        .queryParam("_", timestamp) // 캐시 버스팅 파라미터 추가
         .build()
+        .encode() // 이 줄이 추가됨 - URI 인코딩 처리
         .toUri();
     try {
       log.debug("Calling Flask API with URI: {}", uri);
