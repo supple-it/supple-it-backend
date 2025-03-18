@@ -1,7 +1,6 @@
 package com.suppleit.backend.service;
 
 import com.suppleit.backend.constants.MemberRole;
-
 import com.suppleit.backend.constants.SocialType;
 import com.suppleit.backend.dto.MemberDto;
 import com.suppleit.backend.mapper.MemberMapper;
@@ -13,18 +12,15 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 
-
 @Service
 @RequiredArgsConstructor
 public class MemberService {
 
     private final MemberMapper memberMapper;
     private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
 
-    // ✅ 회원가입 (MyBatis 적용)
+    // 회원가입
     public void insertMember(MemberDto memberDto) {
-
         if (!checkEmail(memberDto.getEmail())) {
             throw new IllegalArgumentException("이미 등록된 이메일입니다.");
         }
@@ -72,17 +68,14 @@ public class MemberService {
             throw new IllegalArgumentException("비밀번호는 특수문자를 포함해야 합니다.");
         }
     }
-    
-    // ✅ 이메일 중복 검사
+
+    // 이메일 중복 검사
     public boolean checkEmail(String email) {
-
         return memberMapper.checkEmail(email) == 0;
-
     }
 
-    // ✅ 닉네임 중복 검사
+    // 닉네임 중복 검사
     public boolean checkNickname(String nickname) {
-
         return memberMapper.checkNickname(nickname.toLowerCase()) == 0;
     }
 
@@ -131,12 +124,12 @@ public class MemberService {
 
     // 회원 탈퇴
     public void deleteMemberByEmail(String email) {
-
         Member member = memberMapper.getMemberByEmail(email);
     
         if (member == null) {
             throw new IllegalArgumentException("해당 이메일로 가입된 사용자가 없습니다.");
         }
+
         memberMapper.deleteMemberByEmail(email);
     }
     
@@ -149,4 +142,3 @@ public class MemberService {
         return member.getMemberRole().name();
     }
 }
-

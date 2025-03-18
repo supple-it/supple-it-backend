@@ -2,7 +2,6 @@ package com.suppleit.backend.model;
 
 import com.suppleit.backend.constants.Gender;
 import com.suppleit.backend.constants.MemberRole;
-
 import com.suppleit.backend.constants.SocialType;
 import lombok.*;
 
@@ -14,7 +13,6 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 public class Member {
-<<<<<<< HEAD
     private Long memberId;
     private String email;
     private String password;

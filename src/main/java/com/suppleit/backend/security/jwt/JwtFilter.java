@@ -5,9 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -15,31 +13,21 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.security.core.Authentication;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
-import org.springframework.util.StringUtils;
 
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-
 
 @Slf4j
-
 @RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
-
     private final JwtTokenBlacklistService tokenBlacklistService; // 추가
-
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-
         try {
             String token = resolveToken(request);
 
@@ -86,12 +74,10 @@ public class JwtFilter extends OncePerRequestFilter {
             log.error("JWT Filter Error", e);
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication error: " + e.getMessage());
         }
-
     }
 
     private String resolveToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-
         if (bearerToken == null) {
             return null;
         }
@@ -102,4 +88,3 @@ public class JwtFilter extends OncePerRequestFilter {
         return bearerToken.substring(7);
     }
 }
-
