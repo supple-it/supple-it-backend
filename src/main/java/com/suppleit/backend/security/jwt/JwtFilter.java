@@ -26,6 +26,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
+    private final JwtTokenBlacklistService tokenBlacklistService; // 추가
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -34,42 +35,30 @@ public class JwtFilter extends OncePerRequestFilter {
             String token = resolveToken(request);
 
             if (token != null) {
+                // 블랙리스트 토큰 확인 로직 추가
+                if (tokenBlacklistService.isBlacklisted(token)) {
+                    log.info("Token is blacklisted (logged out): {}", token.substring(0, 10) + "...");
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token has been invalidated (logged out)");
+                    return;
+                }
+
                 if (!jwtTokenProvider.validateToken(token)) {
                     log.warn("Invalid or expired token");
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
                     return;
                 }
-
+    
                 String email = jwtTokenProvider.getEmail(token);
-                String role = jwtTokenProvider.getRole(token);
-
-                // 로깅 추가
-                log.info("JWT Token - Email: {}, Role: {}", email, role);
-
-                // 역할이 없는 경우 기본값 설정
-                if (!StringUtils.hasText(role)) {
-                    log.warn("No role found in token, defaulting to ROLE_USER");
-                    role = "ROLE_USER";
-                }
-
-                // ROLE_ prefix 확인 및 추가
-                if (!role.startsWith("ROLE_")) {
-                    role = "ROLE_" + role;
-                }
-
-                List<SimpleGrantedAuthority> authorities = Collections.singletonList(
-                    new SimpleGrantedAuthority(role)
-                );
-
-                log.info("Granted Authority: {}", role);
-
+                
+                // UserDetails 먼저 로드
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
+    
                 if (userDetails != null) {
+                    // UserDetails의 기존 권한을 사용
                     Authentication auth = new UsernamePasswordAuthenticationToken(
                         userDetails, 
                         null, 
-                        authorities
+                        userDetails.getAuthorities()  // 토큰에서 추출한 권한 대신 UserDetails의 권한 사용
                     );
                     
                     ((UsernamePasswordAuthenticationToken) auth).setDetails(
@@ -81,9 +70,9 @@ public class JwtFilter extends OncePerRequestFilter {
                     log.warn("No user details found for email: {}", email);
                 }
             }
-
+    
             chain.doFilter(request, response);
-
+    
         } catch (Exception e) {
             log.error("JWT Filter Error", e);
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication error: " + e.getMessage());

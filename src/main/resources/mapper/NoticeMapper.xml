@@ -5,8 +5,8 @@
 <mapper namespace="com.suppleit.backend.mapper.NoticeMapper">
 
     <!-- ✅ 공지사항 전체 조회 -->
-    <select id="getAllNotices" resultType="com.suppleit.backend.dto.NoticeDto">
-        SELECT notice_id AS noticeId, title, content FROM Notice;
+    <select id="getAllNotices" resultType="com.suppleit.backend.model.Notice">
+        SELECT notice_id AS noticeId, title, content, member_id AS memberId FROM Notice;
     </select>
 
     <!-- ✅ 특정 공지사항 조회 -->
