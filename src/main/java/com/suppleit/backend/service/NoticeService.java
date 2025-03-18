@@ -19,14 +19,12 @@ public class NoticeService {
 
     // ✅ 모든 공지사항 조회 (Entity → DTO 변환)
     public List<NoticeDto> getAllNotices() {
-        List<Notice> notices = noticeMapper.getAllNotices();
-        return notices.stream().map(NoticeDto::fromEntity).collect(Collectors.toList());
+        return noticeMapper.getAllNotices(); // 이미 NoticeDto 타입이므로 변환 불필요
     }
 
     // ✅ 특정 공지사항 조회 (Entity → DTO 변환)
     public NoticeDto getNoticeById(Long noticeId) {
-        Notice notice = noticeMapper.getNoticeById(noticeId);
-        return NoticeDto.fromEntity(notice);
+        return noticeMapper.getNoticeById(noticeId); // 변환 과정 제거
     }
 
     // ✅ 공지사항 생성 (관리자만 가능)

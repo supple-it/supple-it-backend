@@ -68,4 +68,6 @@ public class SocialLoginController {
                 .body(ApiResponse.error("네이버 로그인 실패: " + e.getMessage()));
         }
     }
+
+    
 }

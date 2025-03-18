@@ -1,5 +1,6 @@
 package com.suppleit.backend.mapper;
 
+import com.suppleit.backend.dto.NoticeDto;
 import com.suppleit.backend.model.Notice;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -10,10 +11,10 @@ import java.util.List;
 @Mapper
 public interface NoticeMapper {
     // ✅ 공지사항 전체 조회
-    List<Notice> getAllNotices();
+    List<NoticeDto> getAllNotices();
 
     // ✅ 특정 공지사항 조회
-    Notice getNoticeById(@Param("noticeId") Long noticeId);
+    NoticeDto getNoticeById(@Param("noticeId") Long noticeId);
 
     // ✅ 공지사항 생성 (관리자만 가능)
     void insertNotice(Notice notice);
