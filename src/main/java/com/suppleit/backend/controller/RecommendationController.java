@@ -13,8 +13,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
@@ -23,7 +21,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.suppleit.backend.dto.ProductResponse;
-import com.suppleit.backend.dto.SearchRequest;
 import com.suppleit.backend.service.RecommendationService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +46,7 @@ public class RecommendationController {
 
   public RecommendationController(RecommendationService recommendationService) {
     this.recommendationService = recommendationService;
-    this.executorService = Executors.newFixedThreadPool(10);
+    this.executorService = Executors.newFixedThreadPool(5);
   }
 
   @GetMapping("api/recommend")
@@ -94,42 +91,52 @@ public class RecommendationController {
     log.info("Fetched {} valid products from Naver API", validProducts.size());
     results.addAll(validProducts);
 
-    // 정확히 9개를 반환하기 위해 더미 데이터로 채우기
-    return fillWithDummies(results, 9);
+    // 정확히 5개를 반환하기 위해 더미 데이터로 채우거나 잘라내기
+    if (results.size() > 5) {
+      return results.subList(0, 5);
+    } else {
+      return fillWithDummies(results, 5);
+    }
   }
 
-  // Flask 서버로부터 POST 요청 처리를 위한 추가 메서드
-  @PostMapping("/recommend")
-  public List<ProductResponse> receiveRecommendations(@RequestBody SearchRequest request) {
-    log.info("Received POST request with {} recommendations", request.getProducts().size());
-
-    List<String> recommendations = request.getProducts();
-    if (recommendations.isEmpty()) {
-      log.warn("No recommendations received in POST request");
-      return fillWithDummies(new ArrayList<>(), 9);
-    }
-
-    // 네이버 API에서 추천 상품 검색
-    List<CompletableFuture<ProductResponse>> futures = new ArrayList<>();
-    for (String recommendation : recommendations) {
-      futures.add(CompletableFuture.supplyAsync(
-          () -> getNaverProductResponseWithFallback(recommendation),
-          executorService).exceptionally(ex -> {
-            log.error("Error occurred for query: {}, Exception: {}", recommendation, ex.getMessage());
-            return null;
-          }));
-    }
-
-    List<ProductResponse> validProducts = futures.stream()
-        .map(CompletableFuture::join)
-        .filter(response -> response != null)
-        .toList();
-
-    log.info("Fetched {} valid products from Naver API", validProducts.size());
-
-    // 정확히 9개를 반환하기 위해 더미 데이터로 채우기
-    return fillWithDummies(validProducts, 9);
-  }
+  /*
+   * // Flask 서버로부터 POST 요청 처리를 위한 추가 메서드
+   * 
+   * @PostMapping("/recommend")
+   * public List<ProductResponse> receiveRecommendations(@RequestBody
+   * SearchRequest request) {
+   * log.info("Received POST request with {} recommendations",
+   * request.getProducts().size());
+   * 
+   * List<String> recommendations = request.getProducts();
+   * if (recommendations.isEmpty()) {
+   * log.warn("No recommendations received in POST request");
+   * return fillWithDummies(new ArrayList<>(), 9);
+   * }
+   * 
+   * // 네이버 API에서 추천 상품 검색
+   * List<CompletableFuture<ProductResponse>> futures = new ArrayList<>();
+   * for (String recommendation : recommendations) {
+   * futures.add(CompletableFuture.supplyAsync(
+   * () -> getNaverProductResponseWithFallback(recommendation),
+   * executorService).exceptionally(ex -> {
+   * log.error("Error occurred for query: {}, Exception: {}", recommendation,
+   * ex.getMessage());
+   * return null;
+   * }));
+   * }
+   * 
+   * List<ProductResponse> validProducts = futures.stream()
+   * .map(CompletableFuture::join)
+   * .filter(response -> response != null)
+   * .toList();
+   * 
+   * log.info("Fetched {} valid products from Naver API", validProducts.size());
+   * 
+   * // 정확히 9개를 반환하기 위해 더미 데이터로 채우기
+   * return fillWithDummies(validProducts, 8);
+   * }
+   */
 
   private ProductResponse getNaverProductResponse(String query) {
     log.debug("Searching for product on Naver with query: {}", query);
@@ -222,7 +229,7 @@ public class RecommendationController {
 
         // 대체 쿼리 시도 (키워드 단순화)
         if (optimizedQuery.contains(" ")) {
-          String simplifiedQuery = optimizedQuery.split(" ")[0]; // 첫 단어만 사용
+          String simplifiedQuery = optimizedQuery.split(" ")[0]; // 첫번째 단어만 사용
           log.info("Trying simplified query: {}", simplifiedQuery);
           return getNaverProductResponse(simplifiedQuery);
         }
