@@ -28,13 +28,13 @@ spring:
       client:
         registration:
           google:
-            client-id: 286893397263-o0opr0c1et57me60o8sq5ccdf836js75.apps.googleusercontent.com
-            client-secret: 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
+            client-id: #286893397263-o0opr0c1et57me60o8sq5ccdf836js75.apps.googleusercontent.com
+            client-secret: #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
             scope: profile, email
             redirect-uri: "http://localhost:8000/api/social/login/oauth2/code/google"
           naver:
-            client-id: M_qS71BqoG7oESo3_thQ
-            client-secret: KJFNfxGvXh
+            client-id: #M_qS71BqoG7oESo3_thQ
+            client-secret: #KJFNfxGvXh
             authorization-grant-type: authorization_code
             redirect-uri: "http://localhost:8000/api/social/login/oauth2/code/naver"
             scope: name, email
@@ -61,7 +61,7 @@ cors:
   allowed-origins: http://localhost:3000
 
 jwt:
-  secret: ZmluYWxwcm9qZWN0c3VwcGxpdGZpbmFscHJvamVjdHN1cHBsaXQ= # finalprojectsupplitfinalprojectsupplit (base64 인코딩한거)
+  secret: #ZmluYWxwcm9qZWN0c3VwcGxpdGZpbmFscHJvamVjdHN1cHBsaXQ= # finalprojectsupplitfinalprojectsupplit (base64 인코딩한거)
   expiration: 86400000  # 1일 (밀리초 단위)
   refresh-expiration: 604800000  # 7일 (밀리초 단위)
 
@@ -76,8 +76,8 @@ app:
 
 naver:
   api:
-    client-id: sARvjvVaomfrRVoYKUAw 
-    client-secret: omnlYbh5YN
+    client-id: #sARvjvVaomfrRVoYKUAw 
+    client-secret: #omnlYbh5YN
     url : https://openapi.naver.com/v1/search/shop.json
 
 flask:
