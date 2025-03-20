@@ -9,11 +9,11 @@ public interface MemberMapper {
     // ✅ 회원 가입
     void insertMember(Member member);
 
-    // ✅ 이메일로 회원 조회
+    // ✅ 이메일로 회원 조회 (VARCHAR → Enum 변환 적용)
     Member getMemberByEmail(@Param("email") String email);
 
     // ✅ ID로 회원 조회
-    Member getMemberById(@Param("memberId") Integer memberId);
+    Member getMemberById(@Param("memberId") Long memberId);
 
     // ✅ 이메일 중복 검사
     int checkEmail(@Param("email") String email);
@@ -28,5 +28,9 @@ public interface MemberMapper {
     void deleteMemberByEmail(@Param("email") String email);
 
     // ✅ 회원 삭제 (ID 기반)
-    void deleteMemberById(@Param("memberId") Integer memberId);
+    void deleteMemberById(@Param("memberId") Long memberId);
+
+    // 회원 정보 수정
+    void updateMemberInfo(@Param("member") Member member);
+
 }

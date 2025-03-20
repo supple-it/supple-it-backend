@@ -1,15 +1,20 @@
 package com.suppleit.backend.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.suppleit.backend.security.MemberDetailsService;
 import com.suppleit.backend.security.jwt.JwtFilter;
 import com.suppleit.backend.security.jwt.JwtTokenProvider;
+import com.suppleit.backend.security.jwt.JwtTokenBlacklistService;
+import com.suppleit.backend.service.MemberDetailsService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
+import org.springframework.security.config.annotation.web.configurers.oauth2.client.OAuth2LoginConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -26,15 +31,23 @@ import jakarta.servlet.http.HttpServletResponse;
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
+@Slf4j
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final MemberDetailsService memberDetailsService;
+    private final JwtTokenBlacklistService tokenBlacklistService; // 추가
 
-    // ✅ JSON 직렬화를 위한 ObjectMapper
     @Bean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+    public OAuth2LoginConfigurer<HttpSecurity> oauth2LoginConfigurer() {
+        return new OAuth2LoginConfigurer<HttpSecurity>()
+            .successHandler((request, response, authentication) -> {
+                // 로그인 성공 후 처리 로직
+            })
+            .failureHandler((request, response, exception) -> {
+                // 로그인 실패 처리 로직
+                log.error("OAuth2 Login 실패: {}", exception.getMessage());
+            });
     }
 
     // ✅ 비밀번호 암호화 (BCrypt)
@@ -52,7 +65,7 @@ public class SecurityConfig {
             .formLogin(form -> form.disable())  // 기본 로그인 폼 비활성화
             .httpBasic(basic -> basic.disable())  // HTTP Basic 인증 비활성화
             .authorizeHttpRequests(this::configureAuthorization)  // 요청별 권한 설정
-            .addFilterBefore(new JwtFilter(jwtTokenProvider, memberDetailsService), 
+            .addFilterBefore(jwtFilter(), 
                     UsernamePasswordAuthenticationFilter.class)  // ✅ JWT 필터 적용
             .logout(this::configureLogout);  // 로그아웃 설정
 
@@ -62,16 +75,34 @@ public class SecurityConfig {
     // ✅ JWT 필터를 Bean으로 등록
     @Bean
     public JwtFilter jwtFilter() {
-        return new JwtFilter(jwtTokenProvider, memberDetailsService);
+        return new JwtFilter(jwtTokenProvider, memberDetailsService, tokenBlacklistService);
     }
 
-    // ✅ 요청별 권한 설정 (ENUM 활용)
+    // ✅ 요청별 권한 설정
     private void configureAuthorization(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
         auth
-            .requestMatchers("/admin/**").hasRole("ADMIN")  // 기존: hasRole("ROLE_ADMIN")
-            .requestMatchers("/api/member/auth/**").hasAnyRole("ADMIN", "USER")  // 기존: hasAnyRole("ROLE_ADMIN", "ROLE_USER")
-            .anyRequest().permitAll();
-        
+            .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")  // ✅ 관리자 권한 필요
+            .requestMatchers("/api/member/auth/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_USER")  // ✅ 관리자 & 사용자 권한 필요
+            .requestMatchers("/api/logout").authenticated() // ✅ 로그인한 사용자만 로그아웃 가능
+
+            // 소셜 로그인 API는 인증 없이 접근 가능
+            .requestMatchers("/api/social/login/**").permitAll()
+
+            // 추가: 이메일 인증과 토큰 갱신은 인증 없이 접근 가능
+            .requestMatchers("/api/member/verify-email").permitAll()
+            .requestMatchers("/api/auth/refresh").permitAll()
+            .requestMatchers("/api/auth/login").permitAll()
+
+            //공지사항
+            .requestMatchers("/api/notice/image/**").permitAll()  // 이미지 접근 허용
+            .requestMatchers("/api/notice/attachment/**").permitAll()  // 첨부파일 접근 허용
+
+            .requestMatchers(HttpMethod.GET, "/api/notice/**").permitAll()  // 모든 사용자 공지사항 조회 가능
+            .requestMatchers(HttpMethod.POST, "/api/notice").hasAuthority("ROLE_ADMIN")  // 공지사항 작성은 관리자만
+            .requestMatchers(HttpMethod.PUT, "/api/notice/**").hasAuthority("ROLE_ADMIN")  // 공지사항 수정은 관리자만
+            .requestMatchers(HttpMethod.DELETE, "/api/notice/**").hasAuthority("ROLE_ADMIN")  // 공지사항 삭제는 관리자만
+
+            .anyRequest().permitAll();  // ✅ 그 외 요청은 누구나 가능
     }
 
     // ✅ 로그아웃 설정 추가

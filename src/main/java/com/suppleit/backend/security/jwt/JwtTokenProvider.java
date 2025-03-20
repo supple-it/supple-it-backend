@@ -13,27 +13,29 @@ public class JwtTokenProvider {
 
     private final Key key;
     private final long expirationTime;
+    private final long refreshExpirationTime; // 리프레시 토큰 만료 시간 추가
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secretKey,
-            @Value("${jwt.expiration}") long expirationTime) {
+            @Value("${jwt.expiration}") long expirationTime,
+            @Value("${jwt.refresh-expiration:604800000}") long refreshExpirationTime) { // 기본값 7일
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
         this.expirationTime = expirationTime;
+        this.refreshExpirationTime = refreshExpirationTime;
     }
 
-    // ✅ JWT 생성 (이메일 + 역할 포함)
+    // JWT 생성 (이메일 + 역할 포함)
     public String createToken(String email, String role) {
         return Jwts.builder()
                 .setSubject(email)
-                .claim("role", role)  // ✅ ROLE_ 없이 저장
+                .claim("role", "ROLE_" + role.toUpperCase())  // ROLE_을 포함하여 저장
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-
-    // ✅ JWT 검증
+    // JWT 검증
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
@@ -43,7 +45,7 @@ public class JwtTokenProvider {
         }
     }
 
-    // ✅ JWT에서 이메일 추출
+    // JWT에서 이메일 추출
     public String getEmail(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
@@ -53,17 +55,17 @@ public class JwtTokenProvider {
                 .getSubject();
     }
 
-    // ✅ JWT에서 역할(role) 추출
+    // JWT에서 역할(role) 추출
     public String getRole(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
-                .get("role", String.class);   // ✅ 역할(role) 가져오기
+                .get("role", String.class);   // 역할(role) 가져오기
     }
 
-    // ✅ JWT 만료 여부 확인
+    // JWT 만료 여부 확인
     public boolean isJwtExpired(String token) {
         try {
             Date expiration = Jwts.parserBuilder()
@@ -77,6 +79,41 @@ public class JwtTokenProvider {
             return true;  // 토큰이 만료됨
         } catch (JwtException e) {
             return false; // 유효하지 않은 토큰
+        }
+    }
+    
+    // JWT 만료 시간 가져오기
+    public Long getTokenExpirationTime(String token) {
+        try {
+            Date expiration = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getExpiration();
+            return expiration.getTime();
+        } catch (JwtException e) {
+            return null;
+        }
+    }
+    
+    // 리프레시 토큰 생성
+    public String createRefreshToken(String email) {
+        return Jwts.builder()
+                .setSubject(email)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + refreshExpirationTime))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    // 리프레시 토큰 검증
+    public boolean validateRefreshToken(String token) {
+        try {
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
         }
     }
 }
