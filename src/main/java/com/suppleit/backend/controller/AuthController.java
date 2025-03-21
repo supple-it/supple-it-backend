@@ -92,12 +92,25 @@ public class AuthController extends JwtSupportController {
     
     // 비밀번호 찾기 (임시 비밀번호 발급)
     @PostMapping("/find/password")
-    public ResponseEntity<Map<String, Object>> findPassword(@RequestParam String email) {
+    public ResponseEntity<Map<String, Object>> findPassword(@RequestBody Map<String, String> request) {
         try {
-            String tempPassword = authService.generateTempPassword(email);
+            String email = request.get("email");
+            String nickname = request.get("nickname");
+            
+            if (email == null || nickname == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "이메일과 닉네임을 모두 입력해주세요."
+                ));
+            }
+            
+            // 이메일과 닉네임으로 사용자 확인 후 임시 비밀번호 발급
+            String tempPassword = authService.generateTempPasswordWithNicknameCheck(email, nickname);
+            
             return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "임시 비밀번호가 이메일로 발송되었습니다."
+                "message", "임시 비밀번호가 발급되었습니다.",
+                "tempPassword", tempPassword
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of(

@@ -66,20 +66,31 @@ public class AuthService {
         return jwtTokenProvider.createToken(email, role.name());
     }
     
-    // 임시 비밀번호 발급
-    public String generateTempPassword(String email) {
+    /**
+     * 이메일과 닉네임으로 사용자 확인 후 임시 비밀번호 발급
+     */
+    public String generateTempPasswordWithNicknameCheck(String email, String nickname) {
+        // 이메일로 회원 조회
         Member member = memberMapper.getMemberByEmail(email);
         if (member == null) {
             throw new IllegalArgumentException("존재하지 않는 이메일입니다.");
         }
         
+        // 소셜 로그인 계정 확인
         if (member.getSocialType() != SocialType.NONE) {
             throw new IllegalArgumentException("소셜 로그인 계정은 비밀번호 찾기를 이용할 수 없습니다.");
         }
+        
+        // 닉네임 일치 여부 확인
+        if (!member.getNickname().equals(nickname)) {
+            throw new IllegalArgumentException("입력한 정보와 일치하는 계정이 없습니다.");
+        }
 
+        // 임시 비밀번호 생성 (8자리 랜덤 문자열)
         String tempPassword = UUID.randomUUID().toString().substring(0, 8);
         String encryptedTempPassword = passwordEncoder.encode(tempPassword);
 
+        // 비밀번호 업데이트
         memberMapper.updatePassword(email, encryptedTempPassword);
         log.info("임시 비밀번호 발급: {}", tempPassword);
 

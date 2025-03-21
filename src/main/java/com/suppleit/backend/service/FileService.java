@@ -1,4 +1,3 @@
-//0319
 package com.suppleit.backend.service;
 
 import jakarta.annotation.PostConstruct;
@@ -27,10 +26,16 @@ public class FileService {
     @PostConstruct
     public void init() {
         try {
-            Files.createDirectories(Paths.get(imageUploadDir));
-            Files.createDirectories(Paths.get(attachmentUploadDir));
+            Path imagePath = Paths.get(imageUploadDir);
+            Path attachmentPath = Paths.get(attachmentUploadDir);
+            
+            System.out.println("이미지 업로드 경로: " + imagePath.toAbsolutePath());
+            System.out.println("첨부파일 업로드 경로: " + attachmentPath.toAbsolutePath());
+            
+            Files.createDirectories(imagePath);
+            Files.createDirectories(attachmentPath);
         } catch (IOException e) {
-            throw new RuntimeException("업로드 디렉토리를 생성할 수 없습니다", e);
+            throw new RuntimeException("업로드 디렉토리를 생성할 수 없습니다: " + e.getMessage(), e);
         }
     }
 
@@ -102,5 +107,16 @@ public class FileService {
             Path filePath = Paths.get(attachmentUploadDir + relativePath);
             Files.deleteIfExists(filePath);
         }
+    }
+    
+    // 파일 확장자 확인
+    public boolean isImageByExtension(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return false;
+        }
+        String lowerFileName = fileName.toLowerCase();
+        return lowerFileName.endsWith(".jpg") || lowerFileName.endsWith(".jpeg") || 
+               lowerFileName.endsWith(".png") || lowerFileName.endsWith(".gif") || 
+               lowerFileName.endsWith(".bmp") || lowerFileName.endsWith(".svg");
     }
 }

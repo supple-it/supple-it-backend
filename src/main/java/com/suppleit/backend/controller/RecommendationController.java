@@ -65,7 +65,7 @@ public class RecommendationController {
 
     if (recommendations.isEmpty()) {
       log.warn("No recommendations found for keyword: {}", keyword);
-      return fillWithDummies(results, 9);
+      return fillWithDummies(results, 5);
     }
 
     // 3. 추천 키워드로 검색하되 직접 네이버 검색 API 사용
@@ -255,7 +255,7 @@ public class RecommendationController {
     return new ProductResponse(
         "추천 준비 중", // 제목
         "#", // 링크
-        "#", // 더미 이미지 경로
+        " ", // 더미 이미지 경로
         0, // 가격
         true // 더미 표시 플래그
     );

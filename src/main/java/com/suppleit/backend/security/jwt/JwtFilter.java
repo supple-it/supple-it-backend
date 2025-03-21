@@ -29,6 +29,14 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         try {
+            // 공지사항 조회 API는 인증 절차를 건너뛰도록 설정
+            String requestUri = request.getRequestURI();
+            // 수정: /api/notice로 시작하는 모든 GET 요청에 대해 인증 우회
+            if (requestUri.startsWith("/api/notice") && request.getMethod().equals("GET")) {
+                // 공지사항 조회는 인증 없이 진행
+                chain.doFilter(request, response);
+                return;
+            }
             String token = resolveToken(request);
 
             if (token != null) {

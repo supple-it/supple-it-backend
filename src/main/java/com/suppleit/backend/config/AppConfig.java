@@ -9,14 +9,14 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Properties;
 
-@Configuration // ✅ Spring 설정 클래스
+@Configuration  // ✅ Spring 설정 클래스
 public class AppConfig {
 
-    @Bean // ✅ RestTemplate을 Bean으로 등록
+    @Bean  // ✅ RestTemplate을 Bean으로 등록
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }
-
+    
     // 이메일 설정 추가
     @Bean
     public JavaMailSender javaMailSender(
@@ -24,18 +24,18 @@ public class AppConfig {
             @Value("${spring.mail.port:587}") int port,
             @Value("${spring.mail.username:}") String username,
             @Value("${spring.mail.password:}") String password) {
-
+        
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
         mailSender.setHost(host);
         mailSender.setPort(port);
         mailSender.setUsername(username);
         mailSender.setPassword(password);
-
+        
         Properties props = mailSender.getJavaMailProperties();
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.starttls.enable", "true");
-
+        
         return mailSender;
     }
 }
