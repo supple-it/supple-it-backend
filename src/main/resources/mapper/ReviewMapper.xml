@@ -7,9 +7,9 @@
     <!-- 리뷰 등록 -->
     <insert id="insertReview" useGeneratedKeys="true" keyProperty="reviewId">
         INSERT INTO review (
-        member_id, prd_id, product_name, title, content, views, like_count, dislike_count, is_commentable, created_at
+        member_id, prd_id, product_name, title, content, rating, views, like_count, dislike_count, is_commentable, created_at
         ) VALUES (
-        #{memberId}, #{prdId}, #{productName}, #{title}, #{content}, 0, 0, 0, #{isCommentable}, NOW()
+        #{memberId}, #{prdId}, #{productName}, #{title}, #{content}, #{rating} ,0, 0, 0, #{isCommentable}, NOW()
         )
     </insert>
 
@@ -21,6 +21,7 @@
             r.title AS title,
             r.content AS content,
             r.views AS views,
+            r.rating AS rating,
             r.like_count AS likeCount,
             r.dislike_count AS dislikeCount,
             r.is_commentable AS isCommentable,
@@ -63,6 +64,7 @@
             title = #{title}, 
             content = #{content},
             product_name = #{productName},
+            rating = #{rating},
             prd_id = #{prdId},
             updated_at = NOW()
         WHERE review_id = #{reviewId}

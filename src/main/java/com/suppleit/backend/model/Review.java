@@ -14,6 +14,7 @@ public class Review {
     private String title;
     private String content;
     private String productName;
+    private int rating;
     private int views;
     private int likeCount;
     private int dislikeCount;

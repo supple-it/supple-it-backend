@@ -28,6 +28,7 @@ public class ReviewDto {
 
     private String productName;
     private int views;
+    private int rating;
     private int likeCount;
     private int dislikeCount;
 
@@ -46,6 +47,7 @@ public class ReviewDto {
         dto.setContent(review.getContent());
         dto.setProductName(review.getProductName());
         dto.setPrdId(review.getPrdId());
+        dto.setRating(review.getRating());
         dto.setViews(review.getViews());
         dto.setLikeCount(review.getLikeCount());
         dto.setDislikeCount(review.getDislikeCount());
