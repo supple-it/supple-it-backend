@@ -1,0 +1,17 @@
+{"properties": [
+  {
+    "name": "cors.allowed-origins",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-origins'"
+  },
+  {
+    "name": "spring.mybatis.configuration.default-enum-type-handler",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.mybatis.configuration.default-enum-type-handler'"
+  },
+  {
+    "name": "spring.mybatis.type-aliases-package",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.mybatis.type-aliases-package'"
+  }
+]}
