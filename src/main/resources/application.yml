@@ -62,6 +62,8 @@ logging:
     console: "${LOGPATTERN_CONSOLE:%green(%d{HH:mm:ss.SSS}) %blue(%-5level) %red([%thread]) %yellow(%logger{15}:%line)-%msg%n}"
   level:
     com.suppleit.backend.security.jwt: DEBUG
+    com.suppleit.backend.service.ProductService: DEBUG
+    org.springframework.web.client.RestTemplate: DEBUG
 
 # CORS 설정 수정
 cors:
@@ -90,3 +92,9 @@ naver:
 flask:
   api:
     url: http://localhost:5000/ # Flask 서버의 URL
+
+api:
+  health-functional-food:
+    url: http://apis.data.go.kr/1471000/HtfsInfoService03/getHtfsItem01
+    key: Rl82tAspaMIwyso4qMDO9PYB%2FQeFdr1qfz3iBYXw3cv3juwKtIf%2F2NdzU4DaYxcDztE%2Be3tgRSXW4Uvji3e19A%3D%3D
+

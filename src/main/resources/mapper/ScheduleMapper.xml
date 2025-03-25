@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.suppleit.backend.mapper.ScheduleMapper">
+    <insert id="insertSchedule">
+        INSERT INTO Schedule (
+            supplement_name, 
+            intake_time, 
+            intake_start, 
+            intake_end, 
+            intake_distance, 
+            memo, 
+            member_id
+        ) VALUES (
+            #{supplementName}, 
+            #{intakeTime}, 
+            #{intakeStart}, 
+            #{intakeEnd}, 
+            #{intakeDistance}, 
+            #{memo}, 
+            #{memberId}
+        )
+    </insert>
+
+    <select id="getSchedulesByMemberId" resultType="com.suppleit.backend.dto.ScheduleDto">
+        SELECT * FROM Schedule WHERE member_id = #{memberId}
+    </select>
+
+    <select id="getSchedulesByMemberIdAndTime" resultType="com.suppleit.backend.dto.ScheduleDto">
+        SELECT * FROM Schedule 
+        WHERE member_id = #{memberId} 
+        AND intake_time = #{intakeTime}
+    </select>
+
+    <update id="updateSchedule">
+        UPDATE Schedule SET
+            supplement_name = #{supplementName},
+            intake_time = #{intakeTime},
+            intake_start = #{intakeStart},
+            intake_end = #{intakeEnd},
+            intake_distance = #{intakeDistance},
+            memo = #{memo}
+        WHERE schedule_id = #{scheduleId}
+    </update>
+
+    <delete id="deleteSchedule">
+        DELETE FROM Schedule WHERE schedule_id = #{scheduleId}
+    </delete>
+</mapper>

@@ -2,7 +2,6 @@ package com.suppleit.backend.controller;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -66,7 +65,7 @@ public class RecommendationController {
 
     if (recommendations.isEmpty()) {
       log.warn("No recommendations found for keyword: {}", keyword);
-      return fillWithDummies(results, 5);
+      return fillWithDummies(results, 9);
     }
 
     // 3. 추천 키워드로 검색하되 직접 네이버 검색 API 사용
@@ -163,20 +162,13 @@ public class RecommendationController {
 
       if (items.isArray() && items.size() > 0) {
         JsonNode item = items.get(0);
-        JsonNode firstItem = items.get(0);
-        log.debug("First item fields: {}", firstItem.toString());
-        String category = item.path("category1").asText(); // 카테고리 추가
-        log.info("Found product: {} with price: {}, category: {}",
-            item.path("title").asText(),
-            item.path("lprice").asInt(0),
-            category); // 로그에 카테고리 추가
+        log.info("Found product: {} with price: {}", item.path("title").asText(), item.path("lprice").asInt(0));
 
         return new ProductResponse(
             item.path("title").asText(),
             item.path("link").asText(),
             item.path("image").asText(),
             item.path("lprice").asInt(0),
-            category, // 카테고리 필드 추가
             false);
       } else {
         log.warn("No items found for query: {}", query);
@@ -189,10 +181,11 @@ public class RecommendationController {
   }
 
   private ProductResponse getNaverProductResponseWithFallback(String query) {
+    // 기존 getNaverProductResponse를 최적화한 버전
     log.debug("Searching for product on Naver with query: {}", query);
     try {
       // 네이버 API 호출 전 짧은 지연 추가 (속도 제한 방지)
-      Thread.sleep(200); // 300ms 지연
+      Thread.sleep(300); // 300ms 지연
       // 쿼리 최적화 (특수문자 제거, 키워드 정리 등)
       String optimizedQuery = optimizeSearchQuery(query);
 
@@ -221,18 +214,14 @@ public class RecommendationController {
         JsonNode bestItem = findBestMatch(items, query);
 
         if (bestItem != null) {
-          String category = bestItem.path("category1").asText();
-          log.info("Found product: {} with price: {}, category: {}",
-              bestItem.path("title").asText(),
-              bestItem.path("lprice").asInt(0),
-              category);
+          log.info("Found product: {} with price: {}", bestItem.path("title").asText(),
+              bestItem.path("lprice").asInt(0));
 
           return new ProductResponse(
               bestItem.path("title").asText(),
               bestItem.path("link").asText(),
               bestItem.path("image").asText(),
               bestItem.path("lprice").asInt(0),
-              category, // 카테고리 정보도 함께 저장 (ProductResponse 클래스에 필드 추가 필요)
               false); // 실제 상품이므로 isDummy = false
         }
       } else {
@@ -242,9 +231,8 @@ public class RecommendationController {
         if (optimizedQuery.contains(" ")) {
           String simplifiedQuery = optimizedQuery.split(" ")[0]; // 첫번째 단어만 사용
           log.info("Trying simplified query: {}", simplifiedQuery);
-          return getNaverProductResponseWithFallback(simplifiedQuery);
+          return getNaverProductResponse(simplifiedQuery);
         }
-
       }
     } catch (Exception e) {
       log.error("Error occurred while processing query: {}, Exception: {}", query, e.getMessage());
@@ -267,10 +255,10 @@ public class RecommendationController {
     return new ProductResponse(
         "추천 준비 중", // 제목
         "#", // 링크
-        " ", // 더미 이미지 경로
+        "#", // 더미 이미지 경로
         0, // 가격
-        "미분류", // 카테고리 (기본값)
-        true); // 더미 표시 플래그
+        true // 더미 표시 플래그
+    );
   }
 
   // 쿼리 최적화 메소드
@@ -284,44 +272,12 @@ public class RecommendationController {
     JsonNode bestItem = null;
     int highestScore = -1;
 
-    // 허용할 카테고리 목록 (필요에 따라 조정)
-    List<String> allowedCategories = Arrays.asList(
-        "식품"
-    // 원하는 카테고리 추가
-    );
-
-    // 제외할 카테고리
-    List<String> blockedCategories = Arrays.asList(
-        "서비스", "여행/항공권", "E쿠폰", "컨텐츠", "가구/인테리어", "스포츠/레저", "생활/건강", "화장품/미용", "패션의류", "출산/육아"
-    // 원치 않는 카테고리 추가
-    );
-
     for (JsonNode item : items) {
       String title = item.path("title").asText();
-      String category = item.path("category1").asText(); // 네이버 API의 카테고리 필드
       // HTML 태그 제거
       String cleanTitle = title.replaceAll("<[^>]*>", "");
-
-      // 카테고리 필터링
-      if (blockedCategories.stream().anyMatch(category::contains)) {
-        log.debug("Skipping item in blocked category: {}, title: {}", category, cleanTitle);
-        continue; // 제외 카테고리는 건너뛰기
-      }
-      // 허용된 카테고리 필터링 (옵션)
-      // 만약 허용 카테고리만 사용하려면 아래 코드 활성화
-
-      if (!allowedCategories.stream().anyMatch(category::contains)) {
-        log.debug("Skipping item not in allowed category: {}, title: {}", category,
-            cleanTitle);
-        continue;
-      }
-
       // 간단한 관련성 점수 계산
       int score = calculateRelevanceScore(originalQuery, cleanTitle);
-      // 원하는 카테고리에 가중치 부여
-      if (allowedCategories.stream().anyMatch(category::contains)) {
-        score += 50; // 원하는 카테고리에 점수 추가
-      }
 
       if (score > highestScore) {
         highestScore = score;
