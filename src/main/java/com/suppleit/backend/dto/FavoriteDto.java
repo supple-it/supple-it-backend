@@ -1,4 +1,4 @@
-package com.suppleit.backend.model;
+package com.suppleit.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,15 +11,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Product {
+public class FavoriteDto {
+    private Long favoriteId;
     private Long prdId;
     private String productName;
     private String companyName;
-    private String registrationNo;
-    private String expirationPeriod;
-    private String srvUse;
     private String mainFunction;
-    private String preservation;
-    private String intakeHint;
-    private String baseStandard;
+    private String expirationPeriod;
 }

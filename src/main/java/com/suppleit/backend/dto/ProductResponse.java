@@ -1,3 +1,4 @@
+// ProductResponse.java
 package com.suppleit.backend.dto;
 
 public class ProductResponse {
@@ -5,30 +6,27 @@ public class ProductResponse {
   private String link;
   private String image;
   private int price;
-  private String category;
-  private boolean isDummy;
+  private boolean isDummy; // 추가된 필드
 
-  // 모든 필드를 포함하는 새 생성자
-  public ProductResponse(String title, String link, String image, int price, String category, boolean isDummy) {
+  // 기존 생성자
+  public ProductResponse(String title, String link, String image, int price) {
     this.title = title;
     this.link = link;
     this.image = image;
     this.price = price;
-    this.category = category;
+    this.isDummy = false; // 기본값 false
+  }
+
+  // 더미 표시 포함 생성자
+  public ProductResponse(String title, String link, String image, int price, boolean isDummy) {
+    this.title = title;
+    this.link = link;
+    this.image = image;
+    this.price = price;
     this.isDummy = isDummy;
   }
 
-  // 기존 생성자 - 카테고리만 포함 (isDummy는 기본값 false)
-  public ProductResponse(String title, String link, String image, int price, String category) {
-    this(title, link, image, price, category, false);
-  }
-
-  // 기존 생성자 - isDummy만 포함 (카테고리는 기본값 빈 문자열)
-  public ProductResponse(String title, String link, String image, int price, boolean isDummy) {
-    this(title, link, image, price, "", isDummy);
-  }
-
-  // Getter와 Setter 메소드는 그대로 유지
+  // Getter와 Setter 메소드들...
   public String getTitle() {
     return title;
   }
@@ -59,14 +57,6 @@ public class ProductResponse {
 
   public void setPrice(int price) {
     this.price = price;
-  }
-
-  public String getCategory() {
-    return category;
-  }
-
-  public void setCategory(String category) {
-    this.category = category;
   }
 
   public boolean isDummy() {

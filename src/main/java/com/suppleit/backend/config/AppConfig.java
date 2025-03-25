@@ -11,11 +11,6 @@ import java.util.Properties;
 
 @Configuration  // ✅ Spring 설정 클래스
 public class AppConfig {
-
-    @Bean  // ✅ RestTemplate을 Bean으로 등록
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
-    }
     
     // 이메일 설정 추가
     @Bean
