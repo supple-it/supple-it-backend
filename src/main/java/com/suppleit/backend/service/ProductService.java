@@ -64,39 +64,34 @@ public class ProductService {
     // 페이지 파라미터를 받는 오버로딩된 메서드
     public List<ProductDto> searchProducts(String keyword, int page) {
         log.info("제품 검색 시작: keyword={}, page={}", keyword, page);
-
+    
         try {
             // 먼저 DB 검색
             List<ProductDto> dbResults = searchProductsFromDb(keyword);
-
-            // DB 결과가 충분하면 반환
-            if (dbResults.size() >= 5) {
-                log.info("DB에서 충분한 검색 결과 발견: {}건", dbResults.size());
-                return dbResults;
-            }
-
+    
             // DB 결과가 부족할 경우 API 검색
-            log.info("DB 결과 부족 ({}건), 외부 API로 검색 진행", dbResults.size());
-
-            List<ProductDto> apiResults = searchProductsFromApi(keyword, page);
-
-            // 결과 병합
-            Map<Long, ProductDto> combinedResults = new HashMap<>();
-            for (ProductDto product : dbResults) {
-                combinedResults.put(product.getPrdId(), product);
-            }
-
-            for (ProductDto product : apiResults) {
-                if (!combinedResults.containsKey(product.getPrdId())) {
+            if (dbResults.size() < 5) {
+                log.info("DB 결과 부족 ({}건), 외부 API로 검색 진행", dbResults.size());
+    
+                List<ProductDto> apiResults = searchProductsFromApi(keyword, page);
+    
+                // 결과 병합 (중복 제거)
+                Map<Long, ProductDto> combinedResults = new HashMap<>();
+                for (ProductDto product : dbResults) {
                     combinedResults.put(product.getPrdId(), product);
-
-                    // DB 저장 비활성화 (필요 시 복구 가능)
-                    // saveProductToDb(product);
                 }
+    
+                for (ProductDto product : apiResults) {
+                    if (!combinedResults.containsKey(product.getPrdId())) {
+                        combinedResults.put(product.getPrdId(), product);
+                    }
+                }
+    
+                return new ArrayList<>(combinedResults.values());
             }
-
-            return new ArrayList<>(combinedResults.values());
-
+    
+            return dbResults;
+    
         } catch (Exception e) {
             log.error("제품 검색 중 오류", e);
             return new ArrayList<>();
@@ -114,6 +109,19 @@ public class ProductService {
                     .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("DB 검색 중 오류: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
+    }
+    // DB에서만 제품 검색 (API 호출 없음)
+    public List<ProductDto> searchProductsFromDbOnly(String keyword) {
+        log.info("DB에서만 제품 검색: {}", keyword);
+        try {
+            List<Product> products = productMapper.searchProducts(keyword);
+            return products.stream()
+                    .map(this::convertToDto)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("DB 전용 검색 중 오류: {}", e.getMessage(), e);
             return new ArrayList<>();
         }
     }
